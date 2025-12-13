@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { Map, TileLayer, Marker } from 'leaflet';
 
 interface Device {
   id: string;
@@ -23,6 +24,7 @@ interface DeviceMapProps {
 export default function DeviceMap({ devices, selectedDevice }: DeviceMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const mapInstanceRef = useRef<Map | null>(null);
 
   const devicesWithLocation = devices.filter(
     d => d.locationUpdates && d.locationUpdates.length > 0
@@ -43,18 +45,32 @@ export default function DeviceMap({ devices, selectedDevice }: DeviceMapProps) {
     document.head.appendChild(script);
 
     return () => {
-      document.head.removeChild(link);
-      document.head.removeChild(script);
+      // Only remove if they still exist
+      if (document.head.contains(link)) {
+        document.head.removeChild(link);
+      }
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
     };
   }, []);
 
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
 
-    // @ts-ignore
-    const L = window.L;
+    // Safely access window.L with proper typing
+    const L = (window as any).L as typeof import('leaflet');
+    
+    if (!L) {
+      console.error('Leaflet library failed to load');
+      return;
+    }
     
     // Clear existing map
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+    }
+
     mapRef.current.innerHTML = '';
     const mapDiv = document.createElement('div');
     mapDiv.style.height = '100%';
@@ -67,6 +83,7 @@ export default function DeviceMap({ devices, selectedDevice }: DeviceMapProps) {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
       }).addTo(map);
+      mapInstanceRef.current = map;
       return;
     }
 
@@ -79,6 +96,7 @@ export default function DeviceMap({ devices, selectedDevice }: DeviceMapProps) {
     );
 
     const map = L.map(mapDiv).fitBounds(bounds, { padding: [50, 50] });
+    mapInstanceRef.current = map;
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',

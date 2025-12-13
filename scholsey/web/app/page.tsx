@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Smartphone, MapPin } from 'lucide-react'
 
 export default function Home() {
   return (
@@ -22,11 +23,10 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
               <Link 
                 href="/devices" 
-                className="group relative w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-lg font-semibold rounded-xl shadow-2xl shadow-blue-500/50 hover:shadow-blue-500/80 hover:scale-105 smooth-transition overflow-hidden"
+                className="group relative w-full sm:w-auto px-8 py-4 bg-transparent border-2 border-purple-500/50 text-white text-lg font-semibold rounded-xl shadow-xl hover:bg-purple-500/10 hover:border-purple-400 hover:scale-105 smooth-transition"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 opacity-0 group-hover:opacity-100 smooth-transition"></div>
                 <span className="relative flex items-center justify-center gap-3">
-                  <span className="text-2xl">📱</span>
+                  <Smartphone className="w-6 h-6" />
                   Link New Device
                 </span>
               </Link>
@@ -36,7 +36,7 @@ export default function Home() {
                 className="group relative w-full sm:w-auto px-8 py-4 bg-slate-800/80 border-2 border-blue-500/50 text-white text-lg font-semibold rounded-xl shadow-xl hover:bg-slate-700/80 hover:border-blue-400 hover:scale-105 smooth-transition"
               >
                 <span className="relative flex items-center justify-center gap-3">
-                  <span className="text-2xl">📍</span>
+                  <MapPin className="w-6 h-6" />
                   View Live Location
                 </span>
               </Link>
