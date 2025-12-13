@@ -3,17 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 6, 15, 35;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.15), transparent 30%),
+    radial-gradient(circle at 80% 10%, rgba(147, 51, 234, 0.12), transparent 28%),
+    linear-gradient(
+      135deg,
+      rgba(var(--background-start-rgb), 0.95),
+      rgba(var(--background-end-rgb), 0.98)
+    );
 }
