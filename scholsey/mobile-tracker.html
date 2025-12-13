@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scholsey Phone Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .status.disconnected {
+            background: #fee;
+            color: #c33;
+        }
+        
+        .status.connected {
+            background: #efe;
+            color: #3c3;
+        }
+        
+        .status.tracking {
+            background: #eef;
+            color: #33c;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .info-card {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .info-label {
+            color: #666;
+        }
+        
+        .info-value {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .battery {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .battery-icon {
+            font-size: 24px;
+        }
+        
+        .log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            color: #666;
+        }
+        
+        .log-entry.success {
+            color: #3c3;
+        }
+        
+        .log-entry.error {
+            color: #c33;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Phone Tracker</h1>
+        <p class="subtitle">Track your phone's location and battery</p>
+        
+        <div id="status" class="status disconnected">
+            Disconnected
+        </div>
+        
+        <div class="form-group">
+            <label for="serverUrl">Server URL</label>
+            <input type="text" id="serverUrl" value="http://localhost:3001" placeholder="http://localhost:3001">
+        </div>
+        
+        <div class="form-group">
+            <label for="deviceId">Device ID</label>
+            <input type="text" id="deviceId" placeholder="Enter your device ID">
+        </div>
+        
+        <button id="startBtn" onclick="startTracking()">Start Tracking</button>
+        <button id="stopBtn" onclick="stopTracking()" disabled>Stop Tracking</button>
+        
+        <div class="info-card">
+            <div class="info-row">
+                <span class="info-label">Battery:</span>
+                <div class="battery">
+                    <span class="battery-icon" id="batteryIcon">🔋</span>
+                    <span class="info-value" id="batteryLevel">--</span>
+                </div>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Charging:</span>
+                <span class="info-value" id="chargingStatus">--</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Location:</span>
+                <span class="info-value" id="location">--</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Updates Sent:</span>
+                <span class="info-value" id="updateCount">0</span>
+            </div>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let trackingInterval = null;
+        let updateCount = 0;
+        let watchId = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+        
+        function updateStatus(status, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = status;
+            statusDiv.className = `status ${className}`;
+        }
+        
+        function getBatteryInfo() {
+            return navigator.getBattery().then(battery => {
+                const level = Math.round(battery.level * 100);
+                const charging = battery.charging;
+                
+                document.getElementById('batteryLevel').textContent = `${level}%`;
+                document.getElementById('chargingStatus').textContent = charging ? '⚡ Yes' : 'No';
+                document.getElementById('batteryIcon').textContent = charging ? '⚡' : 
+                    level > 75 ? '🔋' : level > 25 ? '🔋' : '🪫';
+                
+                return { batteryLevel: level, isCharging: charging };
+            }).catch(() => {
+                return { batteryLevel: null, isCharging: false };
+            });
+        }
+        
+        function getLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation not supported'));
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(
+                    position => resolve(position),
+                    error => reject(error),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            });
+        }
+        
+        async function sendUpdate() {
+            const deviceId = document.getElementById('deviceId').value;
+            const serverUrl = document.getElementById('serverUrl').value;
+            
+            if (!deviceId) {
+                log('Please enter a device ID', 'error');
+                stopTracking();
+                return;
+            }
+            
+            try {
+                const [position, battery] = await Promise.all([
+                    getLocation(),
+                    getBatteryInfo()
+                ]);
+                
+                const data = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    altitude: position.coords.altitude,
+                    speed: position.coords.speed,
+                    heading: position.coords.heading,
+                    batteryLevel: battery.batteryLevel,
+                    isCharging: battery.isCharging
+                };
+                
+                document.getElementById('location').textContent = 
+                    `${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}`;
+                
+                const response = await fetch(`${serverUrl}/devices/location/${deviceId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    updateCount++;
+                    document.getElementById('updateCount').textContent = updateCount;
+                    log('Location update sent successfully', 'success');
+                } else {
+                    const error = await response.json();
+                    log(`Failed to send update: ${error.message || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function startTracking() {
+            const deviceId = document.getElementById('deviceId').value;
+            
+            if (!deviceId) {
+                alert('Please enter a device ID');
+                return;
+            }
+            
+            updateStatus('Tracking Active', 'tracking');
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('deviceId').disabled = true;
+            document.getElementById('serverUrl').disabled = true;
+            
+            log('Tracking started', 'success');
+            
+            // Send initial update
+            sendUpdate();
+            
+            // Send updates every 30 seconds
+            trackingInterval = setInterval(sendUpdate, 30000);
+        }
+        
+        function stopTracking() {
+            if (trackingInterval) {
+                clearInterval(trackingInterval);
+                trackingInterval = null;
+            }
+            
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            
+            updateStatus('Disconnected', 'disconnected');
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('deviceId').disabled = false;
+            document.getElementById('serverUrl').disabled = false;
+            
+            log('Tracking stopped', 'error');
+        }
+        
+        // Initialize
+        log('App loaded. Enter device ID and start tracking.');
+    </script>
+</body>
+</html>
