@@ -3,18 +3,142 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 255, 255, 255;
+  --foreground-rgb: 229, 231, 235;
   --background-start-rgb: 15, 23, 42;
   --background-end-rgb: 6, 15, 35;
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  @apply transition-all duration-300 ease-in-out;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.15), transparent 30%),
-    radial-gradient(circle at 80% 10%, rgba(147, 51, 234, 0.12), transparent 28%),
+  background: 
     linear-gradient(
       135deg,
-      rgba(var(--background-start-rgb), 0.95),
-      rgba(var(--background-end-rgb), 0.98)
-    );
+      rgba(15, 23, 42, 0.75) 0%,
+      rgba(20, 30, 50, 0.70) 50%,
+      rgba(6, 15, 35, 0.75) 100%
+    ),
+    url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop'),
+    rgb(15, 23, 42);
+  background-attachment: fixed;
+  background-size: cover, cover, auto;
+  background-position: center, center, 0 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.6), rgba(147, 51, 234, 0.6));
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.8), rgba(147, 51, 234, 0.8));
+  box-shadow: inset 0 0 6px rgba(59, 130, 246, 0.4);
+}
+
+/* Smooth transitions and animations */
+@layer components {
+  .smooth-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  .fade-in-animation {
+    @apply animate-fade-in;
+  }
+
+  .slide-up-animation {
+    @apply animate-slide-up;
+  }
+  
+  .card-gradient {
+    @apply bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-blue-500/30 rounded-xl p-6 shadow-xl shadow-blue-500/10 hover:shadow-blue-500/20 hover:border-blue-500/50 smooth-transition;
+  }
+  
+  .card-hover {
+    @apply hover:bg-slate-800 hover:shadow-2xl hover:shadow-blue-500/20;
+  }
+  
+  .button-primary {
+    @apply bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/60 hover:from-blue-500 hover:to-blue-400 hover:scale-105 active:scale-95;
+  }
+  
+  .button-secondary {
+    @apply bg-slate-800 hover:bg-slate-700 text-gray-200 font-medium py-2 px-4 rounded-lg transition-all duration-200 border border-blue-500/30 hover:border-blue-500/60 shadow-lg shadow-slate-800/50 hover:shadow-blue-500/20;
+  }
+
+  .nav-link {
+    @apply relative px-4 py-2 rounded-lg transition-all duration-300 ease-in-out;
+  }
+
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.8), transparent);
+    transform: translateX(-50%);
+    transition: width 0.3s ease;
+  }
+
+  .nav-link:hover::after {
+    width: 90%;
+  }
+
+  .glow-effect {
+    @apply shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent;
+  }
+
+  .tech-pattern {
+    @apply relative before:absolute before:inset-0 before:bg-tech-pattern before:opacity-5 before:rounded-xl;
+  }
+
+  /* Responsive utilities */
+  .mobile-hidden {
+    @apply hidden md:flex;
+  }
+
+  .mobile-show {
+    @apply flex md:hidden;
+  }
 }
