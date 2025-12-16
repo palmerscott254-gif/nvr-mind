@@ -32,6 +32,14 @@ export class UpdateLocationDto {
   heading?: number;
 
   @IsOptional()
+  @IsString()
+  ipAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(100)

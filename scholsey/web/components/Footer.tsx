@@ -53,23 +53,35 @@ export default function Footer() {
             <h4 className="text-white font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/devices" className="text-gray-400 hover:text-white text-sm smooth-transition">
-                  Devices
+                <Link href="/devices" className="text-gray-400 hover:text-blue-400 text-sm smooth-transition relative group">
+                  <span className="relative">
+                    Devices
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300"></span>
+                  </span>
                 </Link>
               </li>
               <li>
-                <Link href="/features" className="text-gray-400 hover:text-white text-sm smooth-transition">
-                  Features
+                <Link href="/features" className="text-gray-400 hover:text-blue-400 text-sm smooth-transition relative group">
+                  <span className="relative">
+                    Features
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300"></span>
+                  </span>
                 </Link>
               </li>
               <li>
-                <Link href="/pricing" className="text-gray-400 hover:text-white text-sm smooth-transition">
-                  Pricing
+                <Link href="/pricing" className="text-gray-400 hover:text-blue-400 text-sm smooth-transition relative group">
+                  <span className="relative">
+                    Pricing
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300"></span>
+                  </span>
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-gray-400 hover:text-white text-sm smooth-transition">
-                  Contact
+                <Link href="/contact" className="text-gray-400 hover:text-blue-400 text-sm smooth-transition relative group">
+                  <span className="relative">
+                    Contact
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300"></span>
+                  </span>
                 </Link>
               </li>
             </ul>
@@ -80,23 +92,35 @@ export default function Footer() {
             <h4 className="text-white font-semibold mb-4">Support</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-gray-400 hover:text-white text-sm smooth-transition">
-                  Documentation
+                <a href="#" className="text-gray-400 hover:text-blue-400 text-sm smooth-transition relative group">
+                  <span className="relative">
+                    Documentation
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300"></span>
+                  </span>
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white text-sm smooth-transition">
-                  API Reference
+                <a href="#" className="text-gray-400 hover:text-blue-400 text-sm smooth-transition relative group">
+                  <span className="relative">
+                    API Reference
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300"></span>
+                  </span>
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white text-sm smooth-transition">
-                  Privacy Policy
+                <a href="#" className="text-gray-400 hover:text-blue-400 text-sm smooth-transition relative group">
+                  <span className="relative">
+                    Privacy Policy
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300"></span>
+                  </span>
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white text-sm smooth-transition">
-                  Terms of Service
+                <a href="#" className="text-gray-400 hover:text-blue-400 text-sm smooth-transition relative group">
+                  <span className="relative">
+                    Terms of Service
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300"></span>
+                  </span>
                 </a>
               </li>
             </ul>

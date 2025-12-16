@@ -19,7 +19,7 @@ api.interceptors.request.use((config) => {
 });
 
 export const authApi = {
-  register: (data: { email: string; password: string; name?: string }) =>
+  register: (data: { email: string; password: string; name?: string; phoneNumber?: string }) =>
     api.post('/auth/register', data),
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
@@ -38,9 +38,36 @@ export const devicesApi = {
     altitude?: number;
     speed?: number;
     heading?: number;
+    ipAddress?: string;
+    city?: string;
     batteryLevel?: number;
     isCharging?: boolean;
   }) => api.post(`/devices/location/${deviceId}`, data),
+  
+  // Security & Remote Control
+  sendCommand: (data: { deviceId: string; commandType: string }) =>
+    api.post('/devices/command', data),
+  getPendingCommands: (deviceId: string) =>
+    api.get(`/devices/commands/${deviceId}`),
+  markAsStolen: (id: string) =>
+    api.post(`/devices/${id}/mark-stolen`),
+  markAsSafe: (id: string) =>
+    api.post(`/devices/${id}/mark-safe`),
+  
+  // Geofencing
+  createGeofence: (data: {
+    name: string;
+    latitude: number;
+    longitude: number;
+    radius: number;
+    alertOnEnter: boolean;
+    alertOnExit: boolean;
+  }) => api.post('/devices/geofence', data),
+  getGeofences: () => api.get('/devices/geofences/list'),
+  deleteGeofence: (id: string) => api.delete(`/devices/geofence/${id}`),
+  
+  // Activity Logs
+  getActivityLogs: () => api.get('/devices/activity/logs'),
 };
 
 export default api;

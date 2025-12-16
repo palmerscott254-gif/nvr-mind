@@ -50,4 +50,16 @@ export class DevicesGateway implements OnGatewayConnection, OnGatewayDisconnect 
   notifyLocationUpdate(userId: string, data: any) {
     this.server.to(`user-${userId}`).emit('location-updated', data);
   }
+
+  notifyDeviceCommand(userId: string, command: any) {
+    this.server.to(`user-${userId}`).emit('device-command', command);
+  }
+
+  notifyGeofenceAlert(userId: string, alert: any) {
+    this.server.to(`user-${userId}`).emit('geofence-alert', alert);
+  }
+
+  notifySecurityAlert(userId: string, alert: any) {
+    this.server.to(`user-${userId}`).emit('security-alert', alert);
+  }
 }

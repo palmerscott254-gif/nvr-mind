@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { devicesApi } from '@/lib/api';
 import DeviceCard from '@/components/DeviceCard';
 import LinkDeviceModal from '@/components/LinkDeviceModal';
 import DeviceMap from '@/components/DeviceMap';
+import SecurityControls from '@/components/SecurityControls';
 import { io, Socket } from 'socket.io-client';
 
 interface Device {
@@ -13,23 +15,37 @@ interface Device {
   deviceId: string;
   batteryLevel: number | null;
   isCharging: boolean;
+  isLocked: boolean;
+  isWiped: boolean;
+  alarmActive: boolean;
+  securityStatus: string;
   lastSeen: string | null;
   locationUpdates: Array<{
     latitude: number;
     longitude: number;
     accuracy: number | null;
+    heading: number | null;
+    ipAddress: string | null;
+    city: string | null;
     timestamp: string;
   }>;
 }
 
 export default function Devices() {
+  const router = useRouter();
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
 
+  // Check authentication on mount
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
     fetchDevices();
     
     // Setup WebSocket connection
@@ -79,9 +95,20 @@ export default function Devices() {
       await devicesApi.linkDevice({ name, deviceId });
       fetchDevices();
       setShowLinkModal(false);
-    } catch (error) {
+      alert('Device linked successfully! 🎉');
+    } catch (error: any) {
       console.error('Failed to link device:', error);
-      alert('Failed to link device. Please try again.');
+      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const statusCode = error.response?.status;
+      
+      if (statusCode === 401) {
+        alert('Session expired. Please log in again.');
+        window.location.href = '/login';
+      } else if (statusCode === 409) {
+        alert('This device ID is already linked to your account.');
+      } else {
+        alert(`Failed to link device: ${errorMsg}`);
+      }
     }
   };
 
@@ -97,6 +124,35 @@ export default function Devices() {
     } catch (error) {
       console.error('Failed to unlink device:', error);
       alert('Failed to unlink device. Please try again.');
+    }
+  };
+
+  const handleSendCommand = async (deviceId: string, commandType: string) => {
+    try {
+      await devicesApi.sendCommand({ deviceId, commandType });
+      alert(`Command "${commandType}" sent successfully!`);
+      fetchDevices(); // Refresh to show updated status
+    } catch (error) {
+      console.error('Failed to send command:', error);
+      alert('Failed to send command. Please try again.');
+    }
+  };
+
+  const handleMarkStatus = async (deviceId: string, status: 'stolen' | 'safe') => {
+    try {
+      if (status === 'stolen') {
+        if (!confirm('Are you sure you want to mark this device as STOLEN? This will enable maximum security measures.')) {
+          return;
+        }
+        await devicesApi.markAsStolen(deviceId);
+      } else {
+        await devicesApi.markAsSafe(deviceId);
+      }
+      alert(`Device marked as ${status.toUpperCase()}`);
+      fetchDevices();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      alert('Failed to update device status.');
     }
   };
 
@@ -140,7 +196,7 @@ export default function Devices() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Devices List */}
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold text-white mb-4">
@@ -157,8 +213,25 @@ export default function Devices() {
             ))}
           </div>
 
-          {/* Map View */}
+          {/* Security Controls - Middle Column */}
+          {selectedDevice && (
+            <div>
+              <h2 className="text-2xl font-semibold text-white mb-4">
+                Security
+              </h2>
+              <SecurityControls
+                device={selectedDevice}
+                onSendCommand={handleSendCommand}
+                onMarkStatus={handleMarkStatus}
+              />
+            </div>
+          )}
+
+          {/* Map View - Right Column */}
           <div className="lg:sticky lg:top-4 h-[600px]">
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              Location
+            </h2>
             <DeviceMap
               devices={selectedDevice ? [selectedDevice] : devices}
               selectedDevice={selectedDevice}

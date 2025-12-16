@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { Map, TileLayer, Marker } from 'leaflet';
 
 interface Device {
   id: string;
@@ -13,7 +12,11 @@ interface Device {
     longitude: number;
     accuracy: number | null;
     timestamp: string;
+    city?: string | null;
   }>;
+  lastLatitude?: number | null;
+  lastLongitude?: number | null;
+  lastCity?: string | null;
 }
 
 interface DeviceMapProps {
@@ -21,154 +24,160 @@ interface DeviceMapProps {
   selectedDevice?: Device | null;
 }
 
+declare global {
+  interface Window {
+    _googleMapsPromise?: Promise<typeof google>;
+  }
+}
+
+function loadGoogleMaps(apiKey?: string) {
+  if ((window as any).google) {
+    return Promise.resolve((window as any).google as typeof google);
+  }
+  if (window._googleMapsPromise) {
+    return window._googleMapsPromise;
+  }
+  if (!apiKey) {
+    return Promise.reject(new Error('Missing Google Maps API key'));
+  }
+  window._googleMapsPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve((window as any).google as typeof google);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return window._googleMapsPromise;
+}
+
 export default function DeviceMap({ devices, selectedDevice }: DeviceMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const mapInstanceRef = useRef<Map | null>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-  const devicesWithLocation = devices.filter(
-    d => d.locationUpdates && d.locationUpdates.length > 0
-  );
+  const devicesWithLocation = devices
+    .map(device => {
+      const loc = device.locationUpdates?.[0];
+      const fallback = device.lastLatitude && device.lastLongitude
+        ? { latitude: device.lastLatitude, longitude: device.lastLongitude, accuracy: null, timestamp: new Date().toISOString(), city: device.lastCity || null }
+        : null;
+      return loc ? { device, location: loc } : fallback ? { device, location: fallback } : null;
+    })
+    .filter((d): d is { device: Device; location: any } => Boolean(d));
 
+  // Load Google Maps script once
   useEffect(() => {
-    // Load Leaflet CSS
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
+    loadGoogleMaps(apiKey)
+      .then(() => setMapReady(true))
+      .catch(err => {
+        console.error('Failed to load Google Maps:', err);
+        setMapReady(false);
+      });
+  }, [apiKey]);
 
-    // Load Leaflet JS
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.async = true;
-    script.onload = () => setMapLoaded(true);
-    document.head.appendChild(script);
-
-    return () => {
-      // Only remove if they still exist
-      if (document.head.contains(link)) {
-        document.head.removeChild(link);
-      }
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-    };
-  }, []);
-
+  // Render markers when data changes
   useEffect(() => {
-    if (!mapLoaded || !mapRef.current) return;
+    if (!mapReady || !mapRef.current) return;
+    const g = (window as any).google as typeof google;
+    if (!g) return;
 
-    // Safely access window.L with proper typing
-    const L = (window as any).L as typeof import('leaflet');
-    
-    if (!L) {
-      console.error('Leaflet library failed to load');
-      return;
-    }
-    
-    // Clear existing map
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
+    // Create map if not existing
+    if (!mapInstanceRef.current) {
+      mapInstanceRef.current = new g.maps.Map(mapRef.current, {
+        center: { lat: 0, lng: 0 },
+        zoom: 3,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+      });
     }
 
-    mapRef.current.innerHTML = '';
-    const mapDiv = document.createElement('div');
-    mapDiv.style.height = '100%';
-    mapDiv.style.width = '100%';
-    mapRef.current.appendChild(mapDiv);
+    // Clear old markers
+    markersRef.current.forEach(m => m.setMap(null));
+    markersRef.current = [];
+    if (infoWindowRef.current) {
+      infoWindowRef.current.close();
+    }
 
     if (devicesWithLocation.length === 0) {
-      // Show default world view
-      const map = L.map(mapDiv).setView([0, 0], 2);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-      }).addTo(map);
-      mapInstanceRef.current = map;
+      mapInstanceRef.current.setCenter({ lat: 0, lng: 0 });
+      mapInstanceRef.current.setZoom(2);
       return;
     }
 
-    // Calculate bounds
-    const bounds = L.latLngBounds(
-      devicesWithLocation.map(d => [
-        d.locationUpdates[0].latitude,
-        d.locationUpdates[0].longitude,
-      ])
-    );
+    const bounds = new g.maps.LatLngBounds();
+    infoWindowRef.current = new g.maps.InfoWindow();
 
-    const map = L.map(mapDiv).fitBounds(bounds, { padding: [50, 50] });
-    mapInstanceRef.current = map;
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(map);
-
-    // Add markers for each device
-    devicesWithLocation.forEach(device => {
-      const location = device.locationUpdates[0];
-      const isSelected = selectedDevice?.id === device.id;
-      
-      const batteryIcon = device.batteryLevel !== null 
-        ? `${device.batteryLevel}% ${device.isCharging ? '⚡' : '🔋'}`
-        : 'N/A';
-
-      const icon = L.divIcon({
-        html: `
-          <div style="
-            background: ${isSelected ? '#8b5cf6' : '#4c1d95'};
-            border: 2px solid ${isSelected ? '#a78bfa' : '#7c3aed'};
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-          ">
-            📱
-          </div>
-        `,
-        className: '',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
+    devicesWithLocation.forEach(({ device, location }) => {
+      const position = { lat: location.latitude, lng: location.longitude } as google.maps.LatLngLiteral;
+      const marker = new g.maps.Marker({
+        position,
+        map: mapInstanceRef.current!,
+        title: device.name,
+        label: '📱',
       });
 
-      const marker = L.marker([location.latitude, location.longitude], { icon })
-        .addTo(map);
-
-      marker.bindPopup(`
-        <div style="font-family: sans-serif;">
-          <strong style="font-size: 16px;">${device.name}</strong><br>
-          <div style="margin-top: 8px;">
-            Battery: ${batteryIcon}<br>
-            Location: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}<br>
-            ${location.accuracy ? `Accuracy: ${location.accuracy.toFixed(0)}m<br>` : ''}
+      const battery = device.batteryLevel !== null ? `${device.batteryLevel}% ${device.isCharging ? '⚡' : '🔋'}` : 'N/A';
+      const html = `
+        <div style="font-family: sans-serif; min-width: 200px;">
+          <strong style="font-size: 16px;">${device.name}</strong><br/>
+          <div style="margin-top: 8px; font-size: 13px; color: #444;">
+            Battery: ${battery}<br/>
+            Location: ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}<br/>
+            ${location.accuracy ? `Accuracy: ${location.accuracy.toFixed(0)}m<br/>` : ''}
+            ${location.city ? `City: ${location.city}<br/>` : ''}
             Updated: ${new Date(location.timestamp).toLocaleString()}
           </div>
         </div>
-      `);
+      `;
 
-      if (isSelected) {
-        marker.openPopup();
+      marker.addListener('click', () => {
+        infoWindowRef.current?.setContent(html);
+        infoWindowRef.current?.open({ map: mapInstanceRef.current!, anchor: marker });
+      });
+
+      markersRef.current.push(marker);
+      bounds.extend(position);
+
+      if (selectedDevice?.id === device.id) {
+        infoWindowRef.current.setContent(html);
+        infoWindowRef.current.open({ map: mapInstanceRef.current!, anchor: marker });
+        mapInstanceRef.current!.setCenter(position);
+        mapInstanceRef.current!.setZoom(16);
       }
     });
 
-  }, [mapLoaded, devicesWithLocation, selectedDevice]);
+    if (selectedDevice) {
+      // Already centered above
+    } else {
+      mapInstanceRef.current.fitBounds(bounds, 80);
+    }
+  }, [mapReady, devicesWithLocation, selectedDevice]);
 
   return (
     <div className="card-gradient h-full rounded-lg overflow-hidden">
-      <div className="h-full" ref={mapRef}>
-        {!mapLoaded && (
-          <div className="h-full flex items-center justify-center text-gray-400">
-            Loading map...
+      <div className="h-full relative" ref={mapRef}>
+        {!apiKey && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-red-200 z-10">
+            Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
           </div>
         )}
-        {mapLoaded && devicesWithLocation.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50">
+        {!mapReady && apiKey && (
+          <div className="absolute inset-0 flex items-center justify-center text-gray-400 z-10">
+            Loading Google Maps...
+          </div>
+        )}
+        {mapReady && devicesWithLocation.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/40">
             <div className="text-center">
               <div className="text-6xl mb-4">🗺️</div>
               <p className="text-xl text-white font-semibold">No Location Data</p>
-              <p className="text-gray-400 mt-2">Devices will appear here once they send location updates</p>
+              <p className="text-gray-300 mt-2">Devices will appear once they send location updates.</p>
             </div>
           </div>
         )}

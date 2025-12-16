@@ -1,18 +1,40 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react'
+import { authApi } from '@/lib/api'
 
 export default function Login() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement login logic
-    console.log('Login:', { email, password })
+    setError('')
+    setLoading(true)
+
+    try {
+      const response = await authApi.login({ email, password })
+      const { access_token, user } = response.data
+      
+      // Store token and user info
+      localStorage.setItem('token', access_token)
+      localStorage.setItem('user', JSON.stringify(user))
+      
+      // Redirect to devices page
+      router.push('/devices')
+    } catch (err: any) {
+      console.error('Login failed:', err)
+      setError(err.response?.data?.message || 'Invalid email or password')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -30,6 +52,12 @@ export default function Login() {
 
         {/* Login Form */}
         <div className="card-gradient backdrop-blur-lg">
+          {error && (
+            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-sm text-red-400">{error}</p>
+            </div>
+          )}
+          
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email Field */}
             <div>
@@ -108,10 +136,11 @@ export default function Login() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 smooth-transition hover:scale-105 active:scale-95"
+              disabled={loading}
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 smooth-transition hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <LogIn className="w-5 h-5" />
-              Sign In
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 

@@ -1,27 +1,63 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { User, Mail, Lock, UserPlus, Eye, EyeOff } from 'lucide-react'
+import { User, Mail, Lock, UserPlus, Eye, EyeOff, Phone } from 'lucide-react'
+import { authApi } from '@/lib/api'
 
 export default function Register() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+    
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!')
+      setError('Passwords do not match!')
       return
     }
-    // TODO: Implement registration logic
-    console.log('Register:', formData)
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const response = await authApi.register({
+        name: formData.name,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        password: formData.password
+      })
+      
+      const { access_token, user } = response.data
+      
+      // Store token and user info
+      localStorage.setItem('token', access_token)
+      localStorage.setItem('user', JSON.stringify(user))
+      
+      // Redirect to devices page
+      router.push('/devices')
+    } catch (err: any) {
+      console.error('Registration failed:', err)
+      setError(err.response?.data?.message || 'Registration failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,6 +82,12 @@ export default function Register() {
 
         {/* Register Form */}
         <div className="card-gradient backdrop-blur-lg">
+          {error && (
+            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-sm text-red-400">{error}</p>
+            </div>
+          )}
+          
           <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Name Field */}
             <div>
@@ -87,6 +129,28 @@ export default function Register() {
                   className="block w-full pl-10 pr-3 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent smooth-transition"
                   placeholder="you@example.com"
                   value={formData.email}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            {/* Phone Number Field */}
+            <div>
+              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-300 mb-2">
+                Phone Number
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  autoComplete="tel"
+                  className="block w-full pl-10 pr-3 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent smooth-transition"
+                  placeholder="+1 (555) 000-0000"
+                  value={formData.phoneNumber}
                   onChange={handleChange}
                 />
               </div>
@@ -178,10 +242,11 @@ export default function Register() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-500 text-white font-semibold rounded-lg shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:from-purple-500 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 smooth-transition hover:scale-105 active:scale-95"
+              disabled={loading}
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-500 text-white font-semibold rounded-lg shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:from-purple-500 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 smooth-transition hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <UserPlus className="w-5 h-5" />
-              Create Account
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
 

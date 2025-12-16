@@ -1,5 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { Battery, MapPin, Navigation, Wifi, Clock, Map } from 'lucide-react';
+
 interface Device {
   id: string;
   name: string;
@@ -11,6 +14,9 @@ interface Device {
     latitude: number;
     longitude: number;
     accuracy: number | null;
+    heading: number | null;
+    ipAddress: string | null;
+    city: string | null;
     timestamp: string;
   }>;
 }
@@ -54,6 +60,28 @@ export default function DeviceCard({ device, isSelected, onSelect, onUnlink }: D
   };
 
   const hasLocation = device.locationUpdates && device.locationUpdates.length > 0;
+  const loc = hasLocation ? device.locationUpdates[0] : null;
+
+  const [place, setPlace] = useState<{ city?: string; county?: string } | null>(null);
+
+  useEffect(() => {
+    async function reverseGeocode() {
+      if (!loc) return;
+      try {
+        // Use OpenStreetMap Nominatim for reverse geocoding
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.latitude}&lon=${loc.longitude}&zoom=10&addressdetails=1`;
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        const city = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.hamlet;
+        const county = data?.address?.county;
+        setPlace({ city, county });
+      } catch (e) {
+        // Fail silently
+      }
+    }
+    reverseGeocode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loc?.latitude, loc?.longitude]);
 
   return (
     <div
@@ -111,16 +139,56 @@ export default function DeviceCard({ device, isSelected, onSelect, onUnlink }: D
 
       {/* Last Seen */}
       <div className="mt-4 pt-4 border-t border-gray-700">
-        <div className="flex justify-between items-center text-sm">
+        <div className="flex justify-between items-center text-sm mb-2">
           <span className="text-gray-400">Last seen:</span>
           <span className="text-white font-medium">{getLastSeenText(device.lastSeen)}</span>
         </div>
       </div>
 
       {hasLocation && (
-        <div className="mt-2 text-xs text-gray-500">
-          Lat: {device.locationUpdates[0].latitude.toFixed(6)}, 
-          Lng: {device.locationUpdates[0].longitude.toFixed(6)}
+        <div className="mt-3 space-y-2 text-xs">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-1 text-gray-400">
+              <MapPin className="w-3 h-3" />
+              <span>Lat: {device.locationUpdates[0].latitude.toFixed(6)}</span>
+            </div>
+            <div className="flex items-center gap-1 text-gray-400">
+              <MapPin className="w-3 h-3" />
+              <span>Lng: {device.locationUpdates[0].longitude.toFixed(6)}</span>
+            </div>
+          </div>
+          
+          {(place?.city || device.locationUpdates[0].city) && (
+            <div className="flex items-center gap-1 text-blue-400">
+              <MapPin className="w-3 h-3" />
+              <span>{place?.city || device.locationUpdates[0].city}</span>
+            </div>
+          )}
+          {place?.county && (
+            <div className="flex items-center gap-1 text-indigo-300">
+              <Map className="w-3 h-3" />
+              <span>{place.county} County</span>
+            </div>
+          )}
+          
+          {device.locationUpdates[0].ipAddress && (
+            <div className="flex items-center gap-1 text-purple-400">
+              <Wifi className="w-3 h-3" />
+              <span>IP: {device.locationUpdates[0].ipAddress}</span>
+            </div>
+          )}
+          
+          {device.locationUpdates[0].heading !== null && (
+            <div className="flex items-center gap-1 text-green-400">
+              <Navigation className="w-3 h-3" />
+              <span>Direction: {Math.round(device.locationUpdates[0].heading)}°</span>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-1 text-gray-500">
+            <Clock className="w-3 h-3" />
+            <span>Updated: {new Date(device.locationUpdates[0].timestamp).toLocaleString()}</span>
+          </div>
         </div>
       )}
     </div>

@@ -260,6 +260,20 @@
             });
         }
         
+        async function getIpInfo() {
+            try {
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+                return {
+                    ip: data.ip || 'Unknown',
+                    city: data.city && data.region ? `${data.city}, ${data.region}` : data.city || 'Unknown'
+                };
+            } catch (error) {
+                log('Could not fetch IP info', 'warning');
+                return { ip: 'Unknown', city: 'Unknown' };
+            }
+        }
+        
         async function sendUpdate() {
             const deviceId = document.getElementById('deviceId').value;
             const serverUrl = document.getElementById('serverUrl').value;
@@ -271,9 +285,10 @@
             }
             
             try {
-                const [position, battery] = await Promise.all([
+                const [position, battery, ipInfo] = await Promise.all([
                     getLocation(),
-                    getBatteryInfo()
+                    getBatteryInfo(),
+                    getIpInfo()
                 ]);
                 
                 const data = {
@@ -283,11 +298,14 @@
                     altitude: position.coords.altitude,
                     speed: position.coords.speed,
                     heading: position.coords.heading,
+                    ipAddress: ipInfo.ip,
+                    city: ipInfo.city,
                     batteryLevel: battery.batteryLevel,
                     isCharging: battery.isCharging
                 };
                 
                 document.getElementById('location').textContent = 
+                    ipInfo.city ? `${ipInfo.city} (${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)})` :
                     `${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}`;
                 
                 const response = await fetch(`${serverUrl}/devices/location/${deviceId}`, {

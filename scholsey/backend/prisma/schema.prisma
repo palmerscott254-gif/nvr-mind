@@ -11,13 +11,22 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  devices   Device[]
+  id              String          @id @default(uuid())
+  email           String          @unique
+  password        String
+  name            String?
+  phoneNumber     String?
+  twoFactorSecret String?         // 2FA secret key
+  twoFactorEnabled Boolean        @default(false)
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  failedLoginAttempts Int         @default(0)
+  accountLocked   Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  devices         Device[]
+  activityLogs    ActivityLog[]
+  geofences       Geofence[]
 }
 
 model Device {
@@ -28,12 +37,22 @@ model Device {
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   batteryLevel    Int?
   isCharging      Boolean          @default(false)
+  isLocked        Boolean          @default(false)  // Remote lock status
+  isWiped         Boolean          @default(false)  // Remote wipe status
+  alarmActive     Boolean          @default(false)  // Alarm/siren status
+  securityStatus  String           @default("safe") // safe, suspicious, stolen
   lastSeen        DateTime?
+  lastLatitude    Float?
+  lastLongitude   Float?
+  lastCity        String?
+  lastIpAddress   String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   locationUpdates LocationUpdate[]
+  commands        DeviceCommand[]
 
   @@index([userId])
+  @@index([securityStatus])
 }
 
 model LocationUpdate {
@@ -46,7 +65,56 @@ model LocationUpdate {
   altitude  Float?
   speed     Float?
   heading   Float?
+  ipAddress String?
+  city      String?
   timestamp DateTime @default(now())
 
   @@index([deviceId, timestamp])
+}
+
+// Remote commands for device control
+model DeviceCommand {
+  id          String   @id @default(uuid())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  commandType String   // lock, unlock, wipe, alarm_on, alarm_off, locate
+  status      String   @default("pending") // pending, sent, executed, failed
+  executedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([deviceId, status])
+}
+
+// Geofencing for location alerts
+model Geofence {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  latitude    Float
+  longitude   Float
+  radius      Int      // Radius in meters
+  alertOnEnter Boolean @default(true)
+  alertOnExit  Boolean @default(true)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Activity logging for security audit
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String   // login, logout, device_linked, device_unlinked, command_sent, etc.
+  ipAddress   String?
+  userAgent   String?
+  deviceInfo  String?
+  success     Boolean  @default(true)
+  metadata    Json?    // Additional context data
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action])
 }
